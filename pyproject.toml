@@ -29,7 +29,8 @@ test = [
 
 [tool.pytest.ini_options]
 markers = [
-    "hardware: tests on live hardware"
+    "hardware_psu: tests for a live psu",
+    "hardware_scope: tests for a live scope"
 ]
 filterwarnings = [
     "ignore:Due to '_pack_':DeprecationWarning",

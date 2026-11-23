@@ -2,4 +2,7 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 .venv/
-*.cpython*
+
+tests/__pycache__/*
+src/embedded_test_suite/__pycache__/*
+src/embedded_test_suite/drivers/__pycache__/*

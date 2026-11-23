@@ -4,7 +4,7 @@ import pytest
 import time
 
 # Mark these tests as live hardware tests
-pytestmark = pytest.mark.hardware
+pytestmark = pytest.mark.hardware_psu
 
 # psu is the fixture name here.
 def test_output_enable_disable(psu):
