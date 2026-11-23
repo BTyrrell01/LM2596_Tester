@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+#
+# rtest -- sync the working tree to the hardware rack and run pytest there.
+#
+# Usage:
+#   scripts/rtest                                   # whole suite
+#   scripts/rtest -m hardware -x -q
+#   scripts/rtest tests/hardware/test_scope_live.py -k trigger
+#
+# Environment overrides:
+#   RACK        ssh host (see ~/.ssh/config)            default: se-hw-01
+#   REMOTE_DIR  path on the rack, relative to $HOME     default: embedded_test_suite
+#   POETRY      poetry on the rack -- it lives in ~/.local/bin, which is NOT on
+#               the PATH of a non-interactive ssh command, so spell it out
+#   SYNC_ONLY   set to any value to push files and stop, without running pytest
+
+set -euo pipefail
+
+RACK="${RACK:-se-hw-01}"
+REMOTE_DIR="${REMOTE_DIR:-embedded_test_suite}"
+POETRY="${POETRY:-\$HOME/.local/bin/poetry}"   # \$HOME expands on the rack
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel)"
+
+# Push the working tree, uncommitted changes included -- that is the whole point
+# of not using git as the transport. .gitignore is the single source of truth for
+# what stays local; .git/ itself is never sent.
+rsync -az --delete \
+    --exclude '.git/' \
+    --filter=':- .gitignore' \
+    "$REPO_ROOT/" "$RACK:$REMOTE_DIR/"
+
+if [ -n "${SYNC_ONLY:-}" ]; then
+    echo "synced $REPO_ROOT -> $RACK:$REMOTE_DIR"
+    exit 0
+fi
+
+# Re-quote each argument so the remote shell sees the same words we were given
+# (bash 3.2 on macOS has no "${*@Q}").
+remote_args=""
+for arg in "$@"; do
+    remote_args="$remote_args $(printf '%q' "$arg")"
+done
+
+# -t allocates a TTY so Ctrl-C reaches pytest on the rack and fixture teardown
+# runs. Without it, ssh dies locally and the instruments are left live.
+exec ssh -t "$RACK" "cd '$REMOTE_DIR' && $POETRY run pytest$remote_args"
