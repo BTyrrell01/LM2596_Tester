@@ -26,7 +26,7 @@ def test_idn_responds(psu):
 @pytest.mark.parametrize("bad_value", [-0.01, 30.01, 31])
 def test_set_voltage_rejects_voltage_out_of_bounds_target(psu, bad_value):
     with pytest.raises(ValueError):
-        psu.set_voltage_setpoint(31)
+        psu.set_voltage_setpoint(bad_value)
 
 @pytest.mark.parametrize("bad_value", [True, "True", b"True", None])
 def test_set_voltage_only_accepts_floats(psu, bad_value):

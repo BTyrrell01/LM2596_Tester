@@ -45,4 +45,4 @@ done
 
 # -t allocates a TTY so Ctrl-C reaches pytest on the rack and fixture teardown
 # runs. Without it, ssh dies locally and the instruments are left live.
-# exec ssh -t "$RACK" "cd '$REMOTE_DIR' && $POETRY run pytest$remote_args"
+exec ssh -t "$RACK" "cd '$REMOTE_DIR' && $POETRY run pytest$remote_args"

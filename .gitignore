@@ -4,5 +4,7 @@ __pycache__/
 .venv/
 
 tests/__pycache__/*
+tests/hardware/__pycache__/*
 src/embedded_test_suite/__pycache__/*
 src/embedded_test_suite/drivers/__pycache__/*
+

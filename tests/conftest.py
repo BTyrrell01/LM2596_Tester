@@ -28,7 +28,7 @@ def rm_py():
     rm.close()
 
 @pytest.fixture(scope="session")
-def tm_ivi():
+def rm_ivi():
     rm = pyvisa.ResourceManager("@ivi")
     yield rm
     rm.close()
@@ -41,7 +41,7 @@ def psu(request, rm_py):
         pytest.skip("PSU_ADDR is empty or not provided")
 
     try:
-        inst = rm.open_resource(addr)
+        inst = rm_py.open_resource(addr)
     except pyvisa.errors.VisaIOError as e:
         pytest.fail(f"Could not open {addr}: {e}", pytrace=False)
 
@@ -64,7 +64,7 @@ def sds822x(request, rm_ivi):
         pytest.skip("SCOPE_ADDR is empty or not provided")
 
     try:
-        inst = rm.open_resource(f"TCPIP0::{addr}::inst0::INSTR")
+        inst = rm_ivi.open_resource(f"TCPIP0::{addr}::inst0::INSTR")
     except pyvisa.errors.VisaIOError as e:
         pytest.fail(f"Could not open {addr}: {e}", pytrace=False)
 
