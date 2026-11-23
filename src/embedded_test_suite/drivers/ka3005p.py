@@ -1,6 +1,7 @@
 # driver for Korad KA3005P power supply
 from enum import Enum, IntFlag
 from pyvisa.constants import StopBits, Parity
+from .validation import as_float_in_range, as_int_in
 import pyvisa
 import time
 
@@ -45,16 +46,7 @@ class Ka3005p:
         
         return Status(int.from_bytes(raw[:1], "big"))
 
-    def _as_float(self, value, name: str) -> float:
-        if isinstance(value, bool) or not isinstance(value, (int, float)):
-            raise TypeError(f"{name} must be a number, got {type(value).__name__}")
-        return float(value)
-
-    def _as_int(self, value, name: str) -> int:
-        if isinstance(value, bool) or not isinstance(value, int):
-            raise TypeError(f"{name} must be a number, got {type(value).__name__}")
-        return int(value)
-
+    
     def _drain_buffer(self) -> None:
         original_timeout = self._resource.timeout
         self._resource.timeout = 100  # Set a short 100 ms timeout
@@ -101,11 +93,8 @@ class Ka3005p:
         return float(self._resource.query(f"VSET{self._CH}?"))
 
     def set_voltage_setpoint(self, target_voltage: float) -> None:
-        # Make sure the user passed in a float
-        target_voltage = self._as_float(target_voltage, "target_voltage")
-
-        if target_voltage < self.MIN_VOLTAGE or target_voltage > self.MAX_VOLTAGE:
-            raise ValueError(f"Voltage outside allowed range of 0 - 30")
+        # Make sure the user passed in a float in range
+        target_voltage = validation.as_float_in_range(target_voltage, "target_voltage", self.MIN_VOLTAGE, self.MAX_VOLTAGE, "VOLTS")
 
         # Write to the supply
         self._resource.write(f"VSET{self._CH}:{target_voltage}")
@@ -122,14 +111,9 @@ class Ka3005p:
             return OutputMode.CONSTANT_VOLTAGE
         return OutputMode.CONSTANT_CURRENT
 
-    def set_output_current_setpoint(self, target_current: float) -> None:
-        
+    def set_output_current_setpoint(self, target_current: float) -> None: 
         # Ensure that we are using a float for future arguments
-        target_current = self._as_float(target_current, "target_current")
-
-        # Check that the target current is within bounds
-        if target_current < self.MIN_CURRENT or target_current > self.MAX_CURRENT:
-            raise ValueError(f"Target current {target_current} outside of range 0-5A")
+        target_current = validation.as_float_in_range(target_current, "target_current", self.MIN_CURRENT, self.MAX_CURRENT, "AMPS")
         
         self._resource.write(f"ISET{self._CH}:{target_current}")
 
@@ -160,23 +144,15 @@ class Ka3005p:
             )
 
     def recall_setting(self, setting: int) -> None:
-
         # Make sure the user passed in an int from 1 - 5
-        setting = self._as_int(setting, "setting")
-
-        if setting not in self.MEMORY_CHANNELS:
-            raise ValueError(f"Setting {setting} is invalid, must be one of {list(self.MEMORY_CHANNELS)}")
+        setting = as_int_in(setting, "setting", self.MEMORY_CHANNELS) 
         
         self._resource.write(f"RCL{setting}") 
         # Not quite sure how we would verify that the setting is what we wanted it to be
 
     def store_setting(self, setting: int) -> None:
-
         # Make sure the user passed in a valid int
-        setting = self._as_int(setting, "setting")
-
-        if setting not in self.MEMORY_CHANNELS:
-            raise ValueError(f"Setting {setting} is invalid, must be one of {list(self.MEMORY_CHANNELS)}")
+        setting = as_int_in(setting, "setting", self.MEMORY_CHANNELS) 
         
         self._resource.write(f"SAV{setting}")
         
@@ -219,20 +195,14 @@ class Ka3005p:
 
     def set_OCP_threshold(self, threshold: float) -> None:
         # Ensure that we are using a float for future arguments
-        threshold = self._as_float(threshold, "threshold")
-
-        if threshold < self.MIN_CURRENT or threshold > self.MAX_CURRENT:
-            raise ValueError(f"OCP threshold of {threshold} is invalid, must be greater than {self.MIN_CURRENT} and less than {self.MAX_CURRENT}")
-
+        target_current = validation.as_float_in_range(target_current, "target_current", self.MIN_CURRENT, self.MAX_CURRENT, "AMPS")
+        
         self._resource.write(f"OCP{threshold}")
         # There is no way to check what the OCP threshold is on the KA3005P
 
     def set_OVP_threshold(self, threshold: float) -> None:
         # Ensure that we are using a float for future arguments
-        threshold = self._as_float(threshold, "threshold")
-
-        if threshold < self.MIN_VOLTAGE or threshold > self.MAX_VOLTAGE:
-            raise ValueError(f"OVP threshold of {threshold} is invalid, must be between {self.MIN_VOLTAGE} - {self.MAX_VOLTAGE}")
+        target_voltage = validation.as_float_in_range(target_voltage, "target_voltage", self.MIN_VOLTAGE, self.MAX_VOLTAGE, "VOLTS")
         
         self._resource.write(f"OVP1{threshold}")
         # There is no way to check what the OCP threshold is on the KA3005P

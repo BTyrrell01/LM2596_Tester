@@ -73,7 +73,7 @@ class Measurement:
 
 
 class Sds822x:
-    _CH_COUNT = 2       # This oscilloscope has 2 channels
+    CHANNELS = [1, 2]       # This oscilloscope has 2 channels
 
     def __init__(self, resource, timeout=5000):
         self._resource = resource
@@ -87,7 +87,7 @@ class Sds822x:
     def default_state(self) -> None:
         self._resource.write("*RST")
 
-    def set_measurement_type(self, mtype: Measurement) -> None:
+    def set_measurement_type(self, mtype: Measurement, channel: int) -> None:
         # pass mtype through constructor to determine if it is the right type
         try:
             mtype = Measurement(mtype)
@@ -96,5 +96,5 @@ class Sds822x:
             raise ValueError(
                 f"{mtype!r} is not a measurement type; must be one of: {valid}"
             ) from None
-        
-        self._resource.write("MEAS:ADV:P1:TYPE 
+
+        self._resource.write(f"MEAS:ADV:P1:TYPE\s{mtype}")
