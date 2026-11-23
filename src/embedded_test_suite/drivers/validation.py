@@ -19,7 +19,7 @@ def as_int(value, name: str) -> int:
     return int(value)
 
 def as_int_in(value, name: str, allowed) -> int:
-    value = as_int(value)
+    value = as_int(value, name)
     if value not in allowed:
         raise ValueError(f"{name} of {value} is invalid, must be one of {list(allowed)}")
     return value

@@ -1,7 +1,8 @@
 # Driver for SDS822X oscilloscope
-from enum import StrEnum
+from enum import Enum, StrEnum
+from .validation import as_int_in
 
-class Measurement:
+class Measurement(StrEnum):
     PKPK = "PKPK"
     MAX = "MAX"
     MIN = "MIN"
@@ -87,6 +88,24 @@ class Sds822x:
     def default_state(self) -> None:
         self._resource.write("*RST")
 
+    def auto_set(self):
+        self._resource.write("AUT")
+    
+    def set_measurement_state(self, state: bool) -> None:
+        if not isinstance(state, bool):
+            raise TypeError(f"state must be a bool, got {type(state).__name__}")
+        target_state = 'ON' if state else 'OFF'
+        self._resource.write(f"MEAS {target_state}")
+        
+        # Ensure that the write actually worked
+        new_measurement_state = self.get_measurement_state()
+        
+        if target_state != new_measurement_state:
+            raise RuntimeError(f"Measurement state is {new_measurement_state}, expected {target_state}")
+
+    def get_measurement_state(self) -> bool:
+        return self._resource.query(f"MEAS?")
+
     def set_measurement_type(self, mtype: Measurement, channel: int) -> None:
         # pass mtype through constructor to determine if it is the right type
         try:
@@ -96,5 +115,17 @@ class Sds822x:
             raise ValueError(
                 f"{mtype!r} is not a measurement type; must be one of: {valid}"
             ) from None
+        
+        channel = as_int_in(channel, "channel", self.CHANNELS)
 
-        self._resource.write(f"MEAS:ADV:P1:TYPE\s{mtype}")
+        self._resource.write(f"MEAS:ADV:P{channel}:TYPE {mtype}")
+
+        # Ensure the write actually worked
+        new_measurement_type = self._resource.query(f"MEAS:ADV:P{channel}:TYPE?")
+        
+        if new_measurement_type != mtype:
+            raise RuntimeError(f"Measurement type is {new_measurement_type}, expected {mtype}")
+
+    def get_measurement_type(self, channel: int) -> bool:
+        channel = as_int_in(channel, "channel", self.CHANNELS)
+        return Measurement(self._resource.query(f"MEAS:ADV:P{channel}:TYPE?"))
