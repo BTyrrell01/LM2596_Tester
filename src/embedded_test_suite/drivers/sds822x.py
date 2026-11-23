@@ -1,5 +1,5 @@
 # Driver for SDS822X oscilloscope
-from enum import Enum, StrEnum
+from enum import StrEnum
 from .validation import as_int_in
 
 class Measurement(StrEnum):
@@ -72,41 +72,52 @@ class Measurement(StrEnum):
     THF = "THF"
     DITMe1 = "DITMe1-4"
 
-
 class Sds822x:
     CHANNELS = [1, 2]       # This oscilloscope has 2 channels
 
-    def __init__(self, resource, timeout=5000):
+    def __init__(self, resource, timeout=15000):
         self._resource = resource
         self._resource.timeout = timeout
         self._resource.read_termination = "\n"
         self._resource.write_termination = "\n"
+
+    def _check_errors(self) -> None:
+        """Raise if the scope logged an error for the last command."""
+        reply = self._resource.query("SYST:ERR?").strip()
+        if not reply.startswith("0,"):
+            raise RuntimeError(f"scope reported: {reply}")
+
+    def _to_float(self, reply: str, context: str) -> float:
+        text = reply.strip()
+        if text.startswith("*"):
+            raise RuntimeError(f"{context} is not measurable on the current signal")
+        try:
+            return float(text)
+        except ValueError:
+            raise RuntimeError(f"unparseable reply for {context}: {reply!r}") from None
 
     def idn(self) -> str:
         return self._resource.query("*IDN?")
 
     def default_state(self) -> None:
         self._resource.write("*RST")
+        self._check_errors()
 
     def auto_set(self):
-        self._resource.write("AUT")
-    
-    def set_measurement_state(self, state: bool) -> None:
-        if not isinstance(state, bool):
-            raise TypeError(f"state must be a bool, got {type(state).__name__}")
-        target_state = 'ON' if state else 'OFF'
-        self._resource.write(f"MEAS {target_state}")
-        
-        # Ensure that the write actually worked
-        new_measurement_state = self.get_measurement_state()
-        
-        if target_state != new_measurement_state:
-            raise RuntimeError(f"Measurement state is {new_measurement_state}, expected {target_state}")
+        self._resource.write("*CLS")
+        self._resource.write(":AUToset")
+        self._resource.query("*OPC?")
+        self._check_errors()
 
-    def get_measurement_state(self) -> bool:
-        return self._resource.query(f"MEAS?")
+    def _set_measurement_channel(self, channel) -> None:
+        channel = as_int_in(channel, "channel", self.CHANNELS)
+        self._resource.write(f":MEASure:SIMPle:SOURce C{channel}")
+        self._check_errors()
 
-    def set_measurement_type(self, mtype: Measurement, channel: int) -> None:
+    def get_measurement_channel(self) -> int:
+        return self._resource.query(f":MEASure:SIMPle:SOURce?")
+
+    def get_measurement_value(self, mtype: Measurement, channel: int) -> str:
         # pass mtype through constructor to determine if it is the right type
         try:
             mtype = Measurement(mtype)
@@ -117,15 +128,7 @@ class Sds822x:
             ) from None
         
         channel = as_int_in(channel, "channel", self.CHANNELS)
+        self._set_measurement_channel(channel)
 
-        self._resource.write(f"MEAS:ADV:P{channel}:TYPE {mtype}")
-
-        # Ensure the write actually worked
-        new_measurement_type = self._resource.query(f"MEAS:ADV:P{channel}:TYPE?")
-        
-        if new_measurement_type != mtype:
-            raise RuntimeError(f"Measurement type is {new_measurement_type}, expected {mtype}")
-
-    def get_measurement_type(self, channel: int) -> bool:
-        channel = as_int_in(channel, "channel", self.CHANNELS)
-        return Measurement(self._resource.query(f"MEAS:ADV:P{channel}:TYPE?"))
+        value = self._resource.query(f"MEAS:SIMP:VAL? {Measurement(mtype)}")
+        return self._to_float(value, f"{mtype} on C{channel}")

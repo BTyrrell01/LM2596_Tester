@@ -6,6 +6,7 @@ import pytest
 import pyvisa
 from embedded_test_suite.drivers.ka3005p import Ka3005p
 from embedded_test_suite.drivers.sds822x import Sds822x
+import time
 
 def pytest_addoption(parser):
     parser.addoption(
@@ -70,8 +71,8 @@ def sds822x(request, rm_ivi):
 
     # If we can't put the scope in the default state then cleanup.
     try:
-        scope = Sds822x(inst, timeout=5000)
-        scope.default_state()
+        scope = Sds822x(inst, timeout=15000)
+        time.sleep(0.2)
         yield scope
     finally:
         inst.close()

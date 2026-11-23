@@ -10,17 +10,12 @@ pytestmark = pytest.mark.hardware_scope
 def test_idn_responds(sds822x):
     assert sds822x.idn()
 
-def test_set_measurement_state(sds822x):
-    sds822x.set_measurement_state(False)
-    sds822x.set_measurement_state(True)
-    sds822x.set_measurement_state(False)
-
-@pytest.mark.parametrize("good_value", [Measurement.MAX, Measurement.MEAN, Measurement.FREQ])
-def test_set_measurement_type(sds822x, good_value):
-    sds822x.set_measurement_state(True)
-    sds822x.set_measurement_type(good_value, 1)
-    sds822x.set_measurement_type(good_value, 2)
-
 def test_auto_set(sds822x):
     sds822x.auto_set()
+
+def test_get_measurement_value(sds822x):
+    sds822x.auto_set()
+
+    assert sds822x.get_measurement_value(Measurement.FREQ, 1) == pytest.approx(1000, rel=0.01)
+
 
